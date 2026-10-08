@@ -32,7 +32,7 @@ spl_autoload_register(static function (string $class): void {
 
 App\Env::load(dirname(__DIR__) . '/.env');
 
-// Slim-App aufbauen
+// Set up the Slim app
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -70,7 +70,7 @@ $errorMiddleware->setErrorHandler(HttpNotFoundException::class, static function 
     \Throwable $exception
 ): Response {
     $response = AppFactory::determineResponseFactory()->createResponse(404);
-    $response->getBody()->write((string) json_encode(['error' => 'ressource not found']));
+    $response->getBody()->write((string) json_encode(['error' => 'resource not found']));
     return $response->withHeader('Content-Type', 'application/json');
 }, true);
 
@@ -84,7 +84,6 @@ $errorMiddleware->setErrorHandler(HttpMethodNotAllowedException::class, static f
 }, true);
 
 
-// testroutes. i have to delete this later. --dontForget--
 
 $app->get('/', static function (Request $request, Response $response): Response {
     $payload = [
@@ -107,5 +106,17 @@ $app->get('/db-check', static function (Request $request, Response $response): R
     $response->getBody()->write((string) json_encode($payload));
     return $response->withHeader('Content-Type', 'application/json');
 });
+
+// API v1 – authentication endpoint (the only public route)
+
+require_once __DIR__ . '/api/api-main.php';
+
+$app->post('/api/v1/authenticate', 'authenticate');
+
+
+// JWT protection for all other endpoints
+
+$jwtMiddleware = new App\JwtMiddleware(new App\JwtService());
+$app->add($jwtMiddleware);
 
 $app->run();
