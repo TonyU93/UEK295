@@ -9,8 +9,6 @@
  *   PUT    /api/v1/product/{id}        – create or update (upsert)
  *   DELETE /api/v1/product/{id}        – delete a product
  *
- * Response bodies use the same field names as the request bodies from the
- * Bruno collection, plus the primary key column id_product.
  */
 
 declare(strict_types=1);
@@ -24,7 +22,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 /**
  * Converts a raw DB row into the API response structure.
- * Numbers get their proper types (price as float, stock/active as int).
+ * Numbers get their proper types.
  *
  * @param array<string, mixed> $row raw row from mysqli
  * @return array<string, mixed> API-ready product object
@@ -87,9 +85,6 @@ function getProduct(Request $request, Response $response): Response
 /**
  * PUT /api/v1/product/{product_id} – create or update a product (upsert).
  *
- * The Bruno request "Create/Update Product" uses PUT: if the product with the
- * given ID exists it is updated, otherwise it is created with that ID.
- *
  * @param Request  $request  incoming request (JSON body + id_product route argument)
  * @param Response $response empty response to fill
  */
@@ -127,11 +122,9 @@ function upsertProduct(Request $request, Response $response): Response
     $repository = new ProductRepository(Database::getConnection());
 
     // Upsert: create when the product does not exist yet, otherwise update.
-    // On create the product gets EXACTLY the ID from the route (e.g. 12345678).
     $existing = $repository->findById($id);
     if ($existing === null) {
         $repository->create($body, $id);
-        // Re-read the row so the response contains the stored values
         $product = $repository->findById($id);
         return JsonResponder::send($response, 201, mapProductRow($product ?? []));
     }
@@ -168,6 +161,5 @@ function deleteProduct(Request $request, Response $response): Response
 
     $repository->delete((int) $id);
 
-    // 204 = success without content (typical for DELETE)
     return $response->withStatus(204);
 }
