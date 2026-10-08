@@ -17,7 +17,6 @@ declare(strict_types=1);
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 
 // fallback autoloader for the App\ classes src/ until the composer PSR-4 mapping
-// is set up in step 3. this supplements composer's autoload_classmap.
 spl_autoload_register(static function (string $class): void {
     if (str_starts_with($class, 'App\\')) {
         $relative = substr($class, 4); // "App\Env" -> "Env"
@@ -122,6 +121,15 @@ $app->get('/api/v1/product/{product_id:[0-9]+}', 'getProduct');
 $app->put('/api/v1/product/{product_id:[0-9]+}', 'upsertProduct');
 $app->delete('/api/v1/product/{product_id:[0-9]+}', 'deleteProduct');
 
+// API v1 – category endpoints protected by JwtMiddleware
+
+require_once __DIR__ . '/api/categories.php';
+
+$app->get('/api/v1/categories', 'listCategories');
+$app->post('/api/v1/category', 'createCategory');
+$app->get('/api/v1/category/{category_id:[0-9]+}', 'getCategory');
+$app->patch('/api/v1/category/{category_id:[0-9]+}', 'updateCategory');
+$app->delete('/api/v1/category/{category_id:[0-9]+}', 'deleteCategory');
 
 // JWT protection for all other endpoints
 

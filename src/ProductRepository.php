@@ -67,10 +67,6 @@ final class ProductRepository
     /**
      * Creates a new product and returns its generated ID.
      *
-     * @param int|null $explicitId optional explicit ID for the upsert case
-     *                             (PUT /product/{id} on a non-existing product
-     *                             must create the product with EXACTLY this ID,
-     *                             e.g. 12345678 in the Bruno collection)
      * @param array<string, mixed> $data validated product data
      */
     public function create(array $data, ?int $explicitId = null): int

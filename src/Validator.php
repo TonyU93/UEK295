@@ -17,17 +17,6 @@ final class Validator
     /**
      * Validates a product payload.
      *
-     * Expected structure (like the Bruno collection):
-     * {
-     *   "active": 1,
-     *   "id_category": 1,        (optional, null = product not listed)
-     *   "name": "CsBe-Logo",
-     *   "image": "https://...",  (optional)
-     *   "description": "...",    (optional)
-     *   "price": 39999.95,
-     *   "stock": 3
-     * }
-     *
      * @param array<string, mixed> $data parsed JSON body
      * @return string[] list of error messages, empty = valid
      */
@@ -88,7 +77,6 @@ final class Validator
     /**
      * Validates a category payload (used by POST and PATCH).
      *
-     * Expected structure: {"active": 1, "name": "Firmen-Logos"}
      * For PATCH, $full = false allows single fields only.
      *
      * @param array<string, mixed> $data parsed JSON body
