@@ -3,7 +3,7 @@
 /**
  * JwtMiddleware.php – Protects all endpoints with a JSON Web Token.
  *
- * Rule: every request needs a valid "Authorization: Bearer <token>" header,
+ * rule: every request needs a valid "Authorization: Bearer <token>" header,
  * EXCEPT the authentication endpoint itself (POST /api/v1/authenticate).
  * On failure the middleware answers with 401 and a JSON body.
  */

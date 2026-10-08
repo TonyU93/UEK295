@@ -113,6 +113,15 @@ require_once __DIR__ . '/api/api-main.php';
 
 $app->post('/api/v1/authenticate', 'authenticate');
 
+// API v1 – product endpoints (protected by JwtMiddleware)
+
+require_once __DIR__ . '/api/products.php';
+
+$app->get('/api/v1/products', 'listProducts');
+$app->get('/api/v1/product/{product_id:[0-9]+}', 'getProduct');
+$app->put('/api/v1/product/{product_id:[0-9]+}', 'upsertProduct');
+$app->delete('/api/v1/product/{product_id:[0-9]+}', 'deleteProduct');
+
 
 // JWT protection for all other endpoints
 
