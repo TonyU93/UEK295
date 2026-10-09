@@ -1,29 +1,22 @@
 <?php
 
-/**
- * swagger.php – Delivers the OpenAPI documentation as YAML.
- *
- * Scans the API classes for OpenAPI attributes and outputs the merged
- * OpenAPI specification. Point Swagger-UI at this URL.
- */
-
 declare(strict_types=1);
 
 require __DIR__ . '/../vendor/autoload.php';
 
-// analyser reflects over the classes, so they must be loaded first
+// Load API endpoints for OpenAPI generator
 require_once __DIR__ . '/api/api-main.php';
 require_once __DIR__ . '/api/products.php';
 require_once __DIR__ . '/api/categories.php';
 
-$result = \OpenApi\Generator::scan([__DIR__ . '/api']);
+$openapi = \OpenApi\Generator::scan([__DIR__ . '/api']);
 
 header('Content-Type: application/x-yaml');
 
-if ($result === null) {
+if ($openapi === null) {
     http_response_code(500);
-    echo '# No OpenAPI specification found';
+    echo '# Failed to generate OpenAPI spec';
     exit;
 }
 
-echo $result->toYaml();
+echo $openapi->toYaml();

@@ -1,13 +1,5 @@
 <?php
 
-/**
- * JwtMiddleware.php – Protects all endpoints with a JSON Web Token.
- *
- * rule: every request needs a valid "Authorization: Bearer <token>" header,
- * EXCEPT the authentication endpoint itself (POST /api/v1/authenticate).
- * On failure the middleware answers with 401 and a JSON body.
- */
-
 declare(strict_types=1);
 
 namespace App;
@@ -21,11 +13,10 @@ use Slim\Psr7\Factory\ResponseFactory;
 
 final class JwtMiddleware implements MiddlewareInterface
 {
-    /** The only public endpoint – accessible without a token */
     private const PUBLIC_PATHS = [
         '/api/v1/authenticate',
-        '/docs',           // UI Page Swagger
-        '/swagger.php',    // YAMl openAPI
+        '/docs',
+        '/swagger.php',
     ];
 
     public function __construct(
@@ -34,11 +25,14 @@ final class JwtMiddleware implements MiddlewareInterface
     ) {
     }
 
+    /**
+     * Authenticate request via JWT token.
+     */
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         $path = '/' . ltrim($request->getUri()->getPath(), '/');
 
-        // documentation and authentication stay open for all
+        // Allow public routes
         foreach (self::PUBLIC_PATHS as $publicPath) {
             if ($path === $publicPath || str_starts_with($path, $publicPath . '/')) {
                 return $handler->handle($request);
@@ -47,7 +41,6 @@ final class JwtMiddleware implements MiddlewareInterface
 
         $authHeader = $request->getHeaderLine('Authorization');
 
-        // Header must have the form "Bearer <token>"
         if ($authHeader === '' || !str_starts_with($authHeader, 'Bearer ')) {
             return $this->unauthorized($request, 'missing or invalid authorization header');
         }
@@ -59,20 +52,17 @@ final class JwtMiddleware implements MiddlewareInterface
             return $this->unauthorized($request, 'invalid or expired token');
         }
 
-        // Make the verified payload available to route handlers
         $request = $request->withAttribute('jwt_payload', $payload);
 
         return $handler->handle($request);
     }
 
     /**
-     * Builds a 401 response in the unified JSON error structure.
+     * Build 401 unauthorized response.
      */
     private function unauthorized(ServerRequestInterface $request, string $message): ResponseInterface
     {
         $response = $this->responseFactory->createResponse(401);
-
-        // Bearer challenge as required by the HTTP standard for 401 responses
         $response = $response->withHeader('WWW-Authenticate', 'Bearer');
 
         return JsonResponder::send($response, 401, ['error' => $message]);

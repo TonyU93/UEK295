@@ -1,11 +1,5 @@
 <?php
 
-/**
- * UserRepository.php – Database access for API users.
- *
- * All queries run as prepared statements to prevent SQL injection.
- */
-
 declare(strict_types=1);
 
 namespace App;
@@ -19,14 +13,10 @@ final class UserRepository
     }
 
     /**
-     * Finds a user by its username.
-     *
-     * @param string $username the username from the login request
-     * @return array<string, mixed>|null the row (id_user, username, password) or null if not found
+     * Find user by username.
      */
     public function findByUsername(string $username): ?array
     {
-        // Prepared statement: the username is bound as parameter, never concatenated
         $stmt = $this->db->prepare('SELECT id_user, username, password FROM user WHERE username = ?');
 
         $stmt->bind_param('s', $username);
@@ -37,6 +27,6 @@ final class UserRepository
 
         $stmt->close();
 
-        return $row !== null ? $row : null;
+        return $row ?: null;
     }
 }

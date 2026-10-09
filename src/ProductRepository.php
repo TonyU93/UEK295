@@ -1,13 +1,5 @@
 <?php
 
-/**
- * ProductRepository.php – Database access for products.
- *
- * All queries run as prepared statements to prevent SQL injection.
- * Supports create-or-update (upsert), read, delete and list operations
- * as needed by the REST endpoints.
- */
-
 declare(strict_types=1);
 
 namespace App;
@@ -21,10 +13,7 @@ final class ProductRepository
     }
 
     /**
-     * Returns all products (optionally only listed ones).
-     *
-     * @param bool $onlyListed true = only products WITH a category (id_category IS NOT NULL)
-     * @return array<int, array<string, mixed>> list of product rows
+     * Get all products.
      */
     public function findAll(bool $onlyListed = false): array
     {
@@ -43,10 +32,7 @@ final class ProductRepository
     }
 
     /**
-     * Finds a single product by its ID.
-     *
-     * @param int $id the product id from the route
-     * @return array<string, mixed>|null the product row or null if not found
+     * Find product by ID.
      */
     public function findById(int $id): ?array
     {
@@ -61,18 +47,15 @@ final class ProductRepository
         $row = $stmt->get_result()->fetch_assoc();
         $stmt->close();
 
-        return $row !== null ? $row : null;
+        return $row ?: null;
     }
 
     /**
-     * Creates a new product and returns its generated ID.
-     *
-     * @param array<string, mixed> $data validated product data
+     * Create product.
      */
     public function create(array $data, ?int $explicitId = null): int
     {
         if ($explicitId !== null) {
-            // Upsert case: insert with the ID from the route
             $stmt = $this->db->prepare(
                 'INSERT INTO product (id_product, id_category, name, description, image, price, stock, active)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
@@ -89,7 +72,6 @@ final class ProductRepository
             return $explicitId;
         }
 
-        // Regular create: let AUTO_INCREMENT choose the ID
         $stmt = $this->db->prepare(
             'INSERT INTO product (id_category, name, description, image, price, stock, active)
              VALUES (?, ?, ?, ?, ?, ?, ?)'
@@ -109,10 +91,7 @@ final class ProductRepository
     }
 
     /**
-     * Updates an existing product.
-     *
-     * @param int                  $id   the product id to update
-     * @param array<string, mixed> $data validated product data
+     * Update product.
      */
     public function update(int $id, array $data): void
     {
@@ -133,9 +112,7 @@ final class ProductRepository
     }
 
     /**
-     * Deletes a product by ID.
-     *
-     * @param int $id the product id to delete
+     * Delete product.
      */
     public function delete(int $id): void
     {
@@ -148,11 +125,9 @@ final class ProductRepository
     }
 
     /**
-     * Checks whether a category ID exists (used to validate id_category on create/update).
-     *
-     * @param int $id the category id to check
+     * Check if category exists.
      */
-    public function categoryExists(int $id): bool
+    public function hasCategory(int $id): bool
     {
         $stmt = $this->db->prepare('SELECT 1 FROM category WHERE id_category = ?');
 

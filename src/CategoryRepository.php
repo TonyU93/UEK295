@@ -1,13 +1,5 @@
 <?php
 
-/**
- * CategoryRepository.php – Database access for categories.
- *
- * All queries run as prepared statements to prevent SQL injection.
- * Supports create, update, read, delete and list operations
- * as needed by the REST endpoints.
- */
-
 declare(strict_types=1);
 
 namespace App;
@@ -21,9 +13,7 @@ final class CategoryRepository
     }
 
     /**
-     * Returns all categories ordered by their ID.
-     *
-     * @return array<int, array<string, mixed>> list of category rows
+     * Get all categories.
      */
     public function findAll(): array
     {
@@ -35,10 +25,7 @@ final class CategoryRepository
     }
 
     /**
-     * Finds a single category by its ID.
-     *
-     * @param int $id the category id from the route
-     * @return array<string, mixed>|null the category row or null if not found
+     * Find category by ID.
      */
     public function findById(int $id): ?array
     {
@@ -52,13 +39,11 @@ final class CategoryRepository
         $row = $stmt->get_result()->fetch_assoc();
         $stmt->close();
 
-        return $row !== null ? $row : null;
+        return $row ?: null;
     }
 
     /**
-     * Creates a new category and returns its generated ID.
-     *
-     * @param array<string, mixed> $data validated category data (name, active)
+     * Create category.
      */
     public function create(array $data): int
     {
@@ -76,16 +61,10 @@ final class CategoryRepository
     }
 
     /**
-     * Updates an existing category. Only the provided fields are changed
-     * missing fields keep their current value.
-     *
-     * @param int                  $id      the category id to update
-     * @param array<string, mixed> $data    subset of name/active
-     * @param array<string, mixed> $current current row values for fallback
+     * Update category.
      */
     public function update(int $id, array $data, array $current): void
     {
-        // PATCH semantics: fall back to the stored value for missing fields
         $name   = isset($data['name'])   ? $data['name']   : $current['name'];
         $active = isset($data['active']) ? $data['active'] : (int) $current['active'];
 
@@ -98,12 +77,7 @@ final class CategoryRepository
     }
 
     /**
-     * Deletes a category by ID.
-     *
-     * Products pointing at this category keep existing afterwards –
-     * the foreign key moves them to id_category = NULL (ON DELETE SET NULL).
-     *
-     * @param int $id the category id to delete
+     * Delete category.
      */
     public function delete(int $id): void
     {

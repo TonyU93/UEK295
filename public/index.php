@@ -1,36 +1,6 @@
 <?php
 
-/**
- * index.php – API front controller. single central entry point.
- *
- * All requests are routed here via the .htaccess rewrite rule and are
- * processed by Slim. Responsible for:
- *  - Autoloading fallback SPL autoloader for App\ until Composer PSR-4 is active
- *  - Setting up the Slim app, including middleware body parsing, routing, error handling
- */
-
 declare(strict_types=1);
-
-// Autoloading
-
-require_once dirname(__DIR__) . '/vendor/autoload.php';
-
-// fallback autoloader for the App\ classes src/ until the composer PSR-4 mapping
-spl_autoload_register(static function (string $class): void {
-    if (str_starts_with($class, 'App\\')) {
-        $relative = substr($class, 4); // "App\Env" -> "Env"
-        $file = dirname(__DIR__) . '/src/' . str_replace('\\', '/', $relative) . '.php';
-        if (is_file($file)) {
-            require $file;
-        }
-    }
-});
-
-// .env-configuration load
-
-App\Env::load(dirname(__DIR__) . '/.env');
-
-// Set up the Slim app
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -39,21 +9,29 @@ use Slim\Exception\HttpNotFoundException;
 use Slim\Factory\AppFactory;
 use Slim\Handlers\ErrorHandler as SlimErrorHandler;
 
+require_once dirname(__DIR__) . '/vendor/autoload.php';
+
+// Autoloader fallback for App namespace
+spl_autoload_register(static function (string $class): void {
+    if (str_starts_with($class, 'App\\')) {
+        $relative = substr($class, 4);
+        $file = dirname(__DIR__) . '/src/' . str_replace('\\', '/', $relative) . '.php';
+        if (is_file($file)) {
+            require $file;
+        }
+    }
+});
+
+App\Env::load(dirname(__DIR__) . '/.env');
+
 $app = AppFactory::create();
 
-//automatically parse the JSON body in $request->getParsedBody() (application/json)
 $app->addBodyParsingMiddleware();
-
-// Routing middleware: throws an HttpNotFoundException (404) or
-// an HttpMethodNotAllowedException (405) for unknown paths or methods
 $app->addRoutingMiddleware();
 
-// error  middleware: catches all unhandled exceptions
-// keep `displayErrorDetails` set to `false` in production
+// Custom error responses
 $errorMiddleware = $app->addErrorMiddleware(false, true, true);
 
-// Configure Slim's default ErrorHandler so that errors are always returned as JSON
-// with the structure {“error”: “...”} never as HTML.
 $errorHandler = $errorMiddleware->getDefaultErrorHandler();
 if ($errorHandler instanceof SlimErrorHandler) {
     $errorHandler->registerErrorRenderer('application/json', App\JsonErrorRenderer::class);
@@ -61,14 +39,12 @@ if ($errorHandler instanceof SlimErrorHandler) {
     $errorHandler->setDefaultErrorRenderer('application/json', App\JsonErrorRenderer::class);
 }
 
-// Explicitly set a custom renderer for the most common errors (404 / 405),
-// so that the messages match the rest of the API.
 $errorMiddleware->setErrorHandler(HttpNotFoundException::class, static function (
     Request $request,
     \Throwable $exception
 ): Response {
     $response = AppFactory::determineResponseFactory()->createResponse(404);
-    $response->getBody()->write((string) json_encode(['error' => 'resource not found']));
+    $response->getBody()->write((string) json_encode(['error' => 'Resource not found']));
     return $response->withHeader('Content-Type', 'application/json');
 }, true);
 
@@ -81,57 +57,26 @@ $errorMiddleware->setErrorHandler(HttpMethodNotAllowedException::class, static f
     return $response->withHeader('Content-Type', 'application/json');
 }, true);
 
-
-
-$app->get('/', static function (Request $request, Response $response): Response {
-    $payload = [
-        'name'    => 'uek295 ShopAPI',
-        'status'  => 'running',
-        'version' => 'v1',
-    ];
-    $response->getBody()->write((string) json_encode($payload));
-    return $response->withHeader('Content-Type', 'application/json');
-});
-
-$app->get('/db-check', static function (Request $request, Response $response): Response {
-    try {
-        $db      = App\Database::getConnection();
-        $payload = ['status' => 'ok', 'server_info' => $db->server_info];
-    } catch (\Throwable $e) {
-        $payload = ['status' => 'error', 'error' => $e->getMessage()];
-    }
-
-    $response->getBody()->write((string) json_encode($payload));
-    return $response->withHeader('Content-Type', 'application/json');
-});
-
-// API v1 – authentication endpoint (the only public route)
-
+// Auth endpoint
 require_once __DIR__ . '/api/api-main.php';
-
 $app->post('/api/v1/authenticate', [AuthApi::class, 'authenticate']);
 
-// API v1 – product endpoints (protected by JwtMiddleware)
-
+// Product endpoints
 require_once __DIR__ . '/api/products.php';
-
 $app->get('/api/v1/products', [ProductApi::class, 'listProducts']);
 $app->get('/api/v1/product/{product_id:[0-9]+}', [ProductApi::class, 'getProduct']);
 $app->put('/api/v1/product/{product_id:[0-9]+}', [ProductApi::class, 'upsertProduct']);
 $app->delete('/api/v1/product/{product_id:[0-9]+}', [ProductApi::class, 'deleteProduct']);
 
-// API v1 – category endpoints protected by JwtMiddleware
-
+// Category endpoints
 require_once __DIR__ . '/api/categories.php';
-
 $app->get('/api/v1/categories', [CategoryApi::class, 'listCategories']);
 $app->post('/api/v1/category', [CategoryApi::class, 'createCategory']);
 $app->get('/api/v1/category/{category_id:[0-9]+}', [CategoryApi::class, 'getCategory']);
 $app->patch('/api/v1/category/{category_id:[0-9]+}', [CategoryApi::class, 'updateCategory']);
 $app->delete('/api/v1/category/{category_id:[0-9]+}', [CategoryApi::class, 'deleteCategory']);
 
-// JWT protection for all other endpoints
-
+// Authentication middleware
 $jwtMiddleware = new App\JwtMiddleware(new App\JwtService());
 $app->add($jwtMiddleware);
 

@@ -1,16 +1,5 @@
 <?php
 
-/**
- * categories.php – Route handlers for the category resource.
- *
- * Endpoints (all protected by JwtMiddleware):
- *   GET    /api/v1/categories              – list all categories
- *   POST   /api/v1/category                – create a category
- *   GET    /api/v1/category/{category_id}  – read a single category
- *   PATCH  /api/v1/category/{category_id}  – update (partial, PATCH semantics)
- *   DELETE /api/v1/category/{category_id}  – delete a category
- */
-
 declare(strict_types=1);
 
 use App\CategoryRepository;
@@ -22,11 +11,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
 /**
- * Converts a raw DB row into the API response structure
- * Numbers get their proper types active as int
- *
- * @param array<string, mixed> $row raw row from mysqli
- * @return array<string, mixed> API-ready category object
+ * Maps raw database row to API response structure.
  */
 function mapCategoryRow(array $row): array
 {
@@ -39,17 +24,28 @@ function mapCategoryRow(array $row): array
 
 final class CategoryApi
 {
+    /**
+     * Get all categories.
+     */
     #[OAT\Get(
         path: '/api/v1/categories',
         operationId: 'listCategories',
-        summary: 'List all categories',
+        summary: 'List categories',
         tags: ['Categories'],
         responses: [
-            new OAT\Response(response: 200, description: 'All categories', content: new OAT\JsonContent(
-                type: 'array',
-                items: new OAT\Items(ref: '#/components/schemas/Category')
-            )),
-            new OAT\Response(response: 401, description: 'Not authenticated', content: new OAT\JsonContent(ref: '#/components/schemas/Error')),
+            new OAT\Response(
+                response: 200, 
+                description: 'Category list', 
+                content: new OAT\JsonContent(
+                    type: 'array',
+                    items: new OAT\Items(ref: '#/components/schemas/Category')
+                )
+            ),
+            new OAT\Response(
+                response: 401, 
+                description: 'Unauthorized', 
+                content: new OAT\JsonContent(ref: '#/components/schemas/Error')
+            ),
         ]
     )]
     public static function listCategories(Request $request, Response $response): Response
@@ -60,10 +56,13 @@ final class CategoryApi
         return JsonResponder::send($response, 200, $categories);
     }
 
+    /**
+     * Create a new category.
+     */
     #[OAT\Post(
         path: '/api/v1/category',
         operationId: 'createCategory',
-        summary: 'Create a category',
+        summary: 'Create category',
         tags: ['Categories'],
         requestBody: new OAT\RequestBody(
             required: true,
@@ -78,45 +77,45 @@ final class CategoryApi
         responses: [
             new OAT\Response(response: 201, description: 'Category created', content: new OAT\JsonContent(ref: '#/components/schemas/Category')),
             new OAT\Response(response: 400, description: 'Validation failed', content: new OAT\JsonContent(ref: '#/components/schemas/Error')),
-            new OAT\Response(response: 401, description: 'Not authenticated', content: new OAT\JsonContent(ref: '#/components/schemas/Error')),
+            new OAT\Response(response: 401, description: 'Unauthorized', content: new OAT\JsonContent(ref: '#/components/schemas/Error')),
         ]
     )]
     public static function createCategory(Request $request, Response $response): Response
     {
-        // body must be a JSON object
         $body = $request->getParsedBody();
         if (!is_array($body)) {
-            return JsonResponder::send($response, 400, ['error' => 'request body must be a JSON object']);
+            return JsonResponder::send($response, 400, ['error' => 'Invalid request body']);
         }
 
-        // Full validation: both fields are required on POST
         $errors = Validator::validateCategory($body, true);
         if ($errors !== []) {
-            return JsonResponder::send($response, 400, ['error' => 'validation failed', 'details' => $errors]);
+            return JsonResponder::send($response, 400, ['error' => 'Validation failed', 'details' => $errors]);
         }
 
+        $body = Validator::getTrimmedData();
+
         $repository = new CategoryRepository(Database::getConnection());
-
         $newId = $repository->create($body);
-
-        // Re-read the row so the response contains the stored values
         $category = $repository->findById($newId);
 
         return JsonResponder::send($response, 201, mapCategoryRow($category ?? []));
     }
 
+    /**
+     * Get category by ID.
+     */
     #[OAT\Get(
         path: '/api/v1/category/{category_id}',
         operationId: 'getCategory',
-        summary: 'Read a single category',
+        summary: 'Get category',
         tags: ['Categories'],
         parameters: [
             new OAT\PathParameter(name: 'category_id', description: 'Category ID', schema: new OAT\Schema(type: 'integer'), example: 1),
         ],
         responses: [
-            new OAT\Response(response: 200, description: 'The category', content: new OAT\JsonContent(ref: '#/components/schemas/Category')),
+            new OAT\Response(response: 200, description: 'Category details', content: new OAT\JsonContent(ref: '#/components/schemas/Category')),
             new OAT\Response(response: 400, description: 'Invalid category ID', content: new OAT\JsonContent(ref: '#/components/schemas/Error')),
-            new OAT\Response(response: 401, description: 'Not authenticated', content: new OAT\JsonContent(ref: '#/components/schemas/Error')),
+            new OAT\Response(response: 401, description: 'Unauthorized', content: new OAT\JsonContent(ref: '#/components/schemas/Error')),
             new OAT\Response(response: 404, description: 'Category not found', content: new OAT\JsonContent(ref: '#/components/schemas/Error')),
         ]
     )]
@@ -124,27 +123,27 @@ final class CategoryApi
     {
         $id = $request->getAttribute('category_id');
 
-        // Route parameter must be a positive integer
-        if (!Validator::validateId((string) $id)) {
-            return JsonResponder::send($response, 400, ['error' => 'category_id must be a positive integer']);
+        if (!Validator::isValidId((string) $id)) {
+            return JsonResponder::send($response, 400, ['error' => 'Invalid category ID']);
         }
 
         $repository = new CategoryRepository(Database::getConnection());
         $category = $repository->findById((int) $id);
 
-        // 404 for unknown categories
         if ($category === null) {
-            return JsonResponder::send($response, 404, ['error' => 'category not found']);
+            return JsonResponder::send($response, 404, ['error' => 'Category not found']);
         }
 
         return JsonResponder::send($response, 200, mapCategoryRow($category));
     }
 
+    /**
+     * Update category.
+     */
     #[OAT\Patch(
         path: '/api/v1/category/{category_id}',
         operationId: 'updateCategory',
-        summary: 'Update a category (partial)',
-        description: 'Accepts a subset of name/active. Missing fields keep their current value.',
+        summary: 'Update category',
         tags: ['Categories'],
         parameters: [
             new OAT\PathParameter(name: 'category_id', description: 'Category ID', schema: new OAT\Schema(type: 'integer'), example: 1),
@@ -161,7 +160,7 @@ final class CategoryApi
         responses: [
             new OAT\Response(response: 200, description: 'Category updated', content: new OAT\JsonContent(ref: '#/components/schemas/Category')),
             new OAT\Response(response: 400, description: 'Validation failed', content: new OAT\JsonContent(ref: '#/components/schemas/Error')),
-            new OAT\Response(response: 401, description: 'Not authenticated', content: new OAT\JsonContent(ref: '#/components/schemas/Error')),
+            new OAT\Response(response: 401, description: 'Unauthorized', content: new OAT\JsonContent(ref: '#/components/schemas/Error')),
             new OAT\Response(response: 404, description: 'Category not found', content: new OAT\JsonContent(ref: '#/components/schemas/Error')),
         ]
     )]
@@ -169,53 +168,52 @@ final class CategoryApi
     {
         $id = $request->getAttribute('category_id');
 
-        // Route parameter must be a positive integer
-        if (!Validator::validateId((string) $id)) {
-            return JsonResponder::send($response, 400, ['error' => 'category_id must be a positive integer']);
+        if (!Validator::isValidId((string) $id)) {
+            return JsonResponder::send($response, 400, ['error' => 'Invalid category ID']);
         }
         $id = (int) $id;
 
-        // body must be a JSON object
         $body = $request->getParsedBody();
         if (!is_array($body)) {
-            return JsonResponder::send($response, 400, ['error' => 'request body must be a JSON object']);
+            return JsonResponder::send($response, 400, ['error' => 'Invalid request body']);
         }
 
-        // Partial validation: at least one of name/active must be present
         $errors = Validator::validateCategory($body, false);
         if ($errors !== []) {
-            return JsonResponder::send($response, 400, ['error' => 'validation failed', 'details' => $errors]);
+            return JsonResponder::send($response, 400, ['error' => 'Validation failed', 'details' => $errors]);
         }
+
+        $body = Validator::getTrimmedData();
 
         $repository = new CategoryRepository(Database::getConnection());
 
-        // 404 when the category does not exist
         $existing = $repository->findById($id);
         if ($existing === null) {
-            return JsonResponder::send($response, 404, ['error' => 'category not found']);
+            return JsonResponder::send($response, 404, ['error' => 'Category not found']);
         }
 
         $repository->update($id, $body, $existing);
-        
-    // Re-read the row so the response contains the merged values
+
         $category = $repository->findById($id);
 
         return JsonResponder::send($response, 200, mapCategoryRow($category ?? []));
     }
 
+    /**
+     * Delete category.
+     */
     #[OAT\Delete(
         path: '/api/v1/category/{category_id}',
         operationId: 'deleteCategory',
-        summary: 'Delete a category',
-        description: 'Products referencing this category are kept; their id_category becomes NULL (ON DELETE SET NULL).',
+        summary: 'Delete category',
         tags: ['Categories'],
         parameters: [
             new OAT\PathParameter(name: 'category_id', description: 'Category ID', schema: new OAT\Schema(type: 'integer'), example: 1),
         ],
         responses: [
-            new OAT\Response(response: 204, description: 'Category deleted (no content)'),
+            new OAT\Response(response: 204, description: 'Category deleted'),
             new OAT\Response(response: 400, description: 'Invalid category ID', content: new OAT\JsonContent(ref: '#/components/schemas/Error')),
-            new OAT\Response(response: 401, description: 'Not authenticated', content: new OAT\JsonContent(ref: '#/components/schemas/Error')),
+            new OAT\Response(response: 401, description: 'Unauthorized', content: new OAT\JsonContent(ref: '#/components/schemas/Error')),
             new OAT\Response(response: 404, description: 'Category not found', content: new OAT\JsonContent(ref: '#/components/schemas/Error')),
         ]
     )]
@@ -223,16 +221,14 @@ final class CategoryApi
     {
         $id = $request->getAttribute('category_id');
 
-        // Route parameter must be a positive integer
-        if (!Validator::validateId((string) $id)) {
-            return JsonResponder::send($response, 400, ['error' => 'category_id must be a positive integer']);
+        if (!Validator::isValidId((string) $id)) {
+            return JsonResponder::send($response, 400, ['error' => 'Invalid category ID']);
         }
 
         $repository = new CategoryRepository(Database::getConnection());
 
-        // 404 when the category does not exist
         if ($repository->findById((int) $id) === null) {
-            return JsonResponder::send($response, 404, ['error' => 'category not found']);
+            return JsonResponder::send($response, 404, ['error' => 'Category not found']);
         }
 
         $repository->delete((int) $id);
