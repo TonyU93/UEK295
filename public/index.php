@@ -7,7 +7,6 @@
  * processed by Slim. Responsible for:
  *  - Autoloading fallback SPL autoloader for App\ until Composer PSR-4 is active
  *  - Setting up the Slim app, including middleware body parsing, routing, error handling
- *  - Registering routes currently test routes. i have to change them later --dontForget--
  */
 
 declare(strict_types=1);
@@ -110,26 +109,26 @@ $app->get('/db-check', static function (Request $request, Response $response): R
 
 require_once __DIR__ . '/api/api-main.php';
 
-$app->post('/api/v1/authenticate', 'authenticate');
+$app->post('/api/v1/authenticate', [AuthApi::class, 'authenticate']);
 
 // API v1 – product endpoints (protected by JwtMiddleware)
 
 require_once __DIR__ . '/api/products.php';
 
-$app->get('/api/v1/products', 'listProducts');
-$app->get('/api/v1/product/{product_id:[0-9]+}', 'getProduct');
-$app->put('/api/v1/product/{product_id:[0-9]+}', 'upsertProduct');
-$app->delete('/api/v1/product/{product_id:[0-9]+}', 'deleteProduct');
+$app->get('/api/v1/products', [ProductApi::class, 'listProducts']);
+$app->get('/api/v1/product/{product_id:[0-9]+}', [ProductApi::class, 'getProduct']);
+$app->put('/api/v1/product/{product_id:[0-9]+}', [ProductApi::class, 'upsertProduct']);
+$app->delete('/api/v1/product/{product_id:[0-9]+}', [ProductApi::class, 'deleteProduct']);
 
 // API v1 – category endpoints protected by JwtMiddleware
 
 require_once __DIR__ . '/api/categories.php';
 
-$app->get('/api/v1/categories', 'listCategories');
-$app->post('/api/v1/category', 'createCategory');
-$app->get('/api/v1/category/{category_id:[0-9]+}', 'getCategory');
-$app->patch('/api/v1/category/{category_id:[0-9]+}', 'updateCategory');
-$app->delete('/api/v1/category/{category_id:[0-9]+}', 'deleteCategory');
+$app->get('/api/v1/categories', [CategoryApi::class, 'listCategories']);
+$app->post('/api/v1/category', [CategoryApi::class, 'createCategory']);
+$app->get('/api/v1/category/{category_id:[0-9]+}', [CategoryApi::class, 'getCategory']);
+$app->patch('/api/v1/category/{category_id:[0-9]+}', [CategoryApi::class, 'updateCategory']);
+$app->delete('/api/v1/category/{category_id:[0-9]+}', [CategoryApi::class, 'deleteCategory']);
 
 // JWT protection for all other endpoints
 

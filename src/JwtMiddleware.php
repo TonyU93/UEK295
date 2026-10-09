@@ -22,7 +22,11 @@ use Slim\Psr7\Factory\ResponseFactory;
 final class JwtMiddleware implements MiddlewareInterface
 {
     /** The only public endpoint – accessible without a token */
-    private const PUBLIC_PATH = '/api/v1/authenticate';
+    private const PUBLIC_PATHS = [
+        '/api/v1/authenticate',
+        '/docs',           // UI Page Swagger
+        '/swagger.php',    // YAMl openAPI
+    ];
 
     public function __construct(
         private JwtService $jwtService,
@@ -32,9 +36,13 @@ final class JwtMiddleware implements MiddlewareInterface
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        // The authentication endpoint stays open for everyone
-        if ($request->getUri()->getPath() === self::PUBLIC_PATH) {
-            return $handler->handle($request);
+        $path = '/' . ltrim($request->getUri()->getPath(), '/');
+
+        // documentation and authentication stay open for all
+        foreach (self::PUBLIC_PATHS as $publicPath) {
+            if ($path === $publicPath || str_starts_with($path, $publicPath . '/')) {
+                return $handler->handle($request);
+            }
         }
 
         $authHeader = $request->getHeaderLine('Authorization');
