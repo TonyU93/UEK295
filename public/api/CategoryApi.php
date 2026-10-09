@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use App\CategoryRepository;
-use App\Database;
-use App\JsonResponder;
-use App\Validator;
+use App\Config\Database;
+use App\Http\JsonResponder;
+use App\Repository\CategoryRepository;
+use App\Validation\Validator;
 use OpenApi\Attributes as OAT;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;

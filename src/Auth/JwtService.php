@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App;
+namespace App\Auth;
 
+use App\Config\Env;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Throwable;

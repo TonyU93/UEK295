@@ -11,7 +11,6 @@ use Slim\Handlers\ErrorHandler as SlimErrorHandler;
 
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 
-// Autoloader fallback for App namespace
 spl_autoload_register(static function (string $class): void {
     if (str_starts_with($class, 'App\\')) {
         $relative = substr($class, 4);
@@ -22,21 +21,20 @@ spl_autoload_register(static function (string $class): void {
     }
 });
 
-App\Env::load(dirname(__DIR__) . '/.env');
+App\Config\Env::load(dirname(__DIR__) . '/.env');
 
 $app = AppFactory::create();
 
 $app->addBodyParsingMiddleware();
 $app->addRoutingMiddleware();
 
-// Custom error responses
 $errorMiddleware = $app->addErrorMiddleware(false, true, true);
 
 $errorHandler = $errorMiddleware->getDefaultErrorHandler();
 if ($errorHandler instanceof SlimErrorHandler) {
-    $errorHandler->registerErrorRenderer('application/json', App\JsonErrorRenderer::class);
+    $errorHandler->registerErrorRenderer('application/json', App\Http\JsonErrorRenderer::class);
     $errorHandler->forceContentType('application/json');
-    $errorHandler->setDefaultErrorRenderer('application/json', App\JsonErrorRenderer::class);
+    $errorHandler->setDefaultErrorRenderer('application/json', App\Http\JsonErrorRenderer::class);
 }
 
 $errorMiddleware->setErrorHandler(HttpNotFoundException::class, static function (
@@ -57,27 +55,24 @@ $errorMiddleware->setErrorHandler(HttpMethodNotAllowedException::class, static f
     return $response->withHeader('Content-Type', 'application/json');
 }, true);
 
-// Auth endpoint
-require_once __DIR__ . '/api/api-main.php';
+require_once __DIR__ . '/api/openapi.php';
+require_once __DIR__ . '/api/AuthApi.php';
 $app->post('/api/v1/authenticate', [AuthApi::class, 'authenticate']);
 
-// Product endpoints
-require_once __DIR__ . '/api/products.php';
+require_once __DIR__ . '/api/ProductApi.php';
 $app->get('/api/v1/products', [ProductApi::class, 'listProducts']);
 $app->get('/api/v1/product/{product_id:[0-9]+}', [ProductApi::class, 'getProduct']);
 $app->put('/api/v1/product/{product_id:[0-9]+}', [ProductApi::class, 'upsertProduct']);
 $app->delete('/api/v1/product/{product_id:[0-9]+}', [ProductApi::class, 'deleteProduct']);
 
-// Category endpoints
-require_once __DIR__ . '/api/categories.php';
+require_once __DIR__ . '/api/CategoryApi.php';
 $app->get('/api/v1/categories', [CategoryApi::class, 'listCategories']);
 $app->post('/api/v1/category', [CategoryApi::class, 'createCategory']);
 $app->get('/api/v1/category/{category_id:[0-9]+}', [CategoryApi::class, 'getCategory']);
 $app->patch('/api/v1/category/{category_id:[0-9]+}', [CategoryApi::class, 'updateCategory']);
 $app->delete('/api/v1/category/{category_id:[0-9]+}', [CategoryApi::class, 'deleteCategory']);
 
-// Authentication middleware
-$jwtMiddleware = new App\JwtMiddleware(new App\JwtService());
+$jwtMiddleware = new App\Auth\JwtMiddleware(new App\Auth\JwtService());
 $app->add($jwtMiddleware);
 
 $app->run();
