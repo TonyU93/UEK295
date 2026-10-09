@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App;
+namespace App\Http;
 
 use Slim\Error\AbstractErrorRenderer;
 use Throwable;

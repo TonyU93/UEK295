@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App;
+namespace App\Auth;
 
+use App\Http\JsonResponder;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
